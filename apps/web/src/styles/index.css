@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-page font-body text-base text-ink antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-heading;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Reusable pieces taken from the design CSS (.bt, .pl, .cardm, .nav ...). Phase 2 wraps these in components. */
+/* Focus uses the theme navy (never gold). Keyboard focus stays visible; mouse focus on fields is a soft navy border. */
+:root { --focus: #1e2a5e; }
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+input, select, textarea { accent-color: var(--focus); caret-color: var(--focus); }
+input:focus, select:focus, textarea:focus { outline: none; }
+.input:focus, input.input:focus-visible, select.input:focus-visible, textarea.input:focus-visible {
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(30, 42, 94, 0.15);
+}
+/* Browser autofill paints fields pale yellow; keep them white. */
+input:-webkit-autofill, input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  -webkit-text-fill-color: #1b2233;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .card { @apply rounded-card border border-line bg-card p-3 px-3.5; }
+  .btn { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-ctl border border-line bg-card px-[11px] py-1.5 text-[12.5px] font-semibold text-ink; }
+  .btn-primary { @apply border-navy bg-navy text-white; }
+  .btn-gold { @apply border-gold bg-gold text-gold-ink; }
+  .btn-lg { @apply px-3.5 py-2.5 text-sm; }
+  .pill { @apply inline-block rounded-full px-2 py-px text-[11px] font-semibold; }
+  .pill-ok { @apply bg-pill-ok-bg text-pill-ok; }
+  .pill-wait { @apply bg-pill-wa-bg text-pill-wa; }
+  .pill-bad { @apply bg-pill-bad-bg text-pill-bad; }
+  .pill-info { @apply bg-pill-in-bg text-navy; }
+  .input { @apply w-full rounded-ctl border border-line bg-card px-2.5 py-1.5 text-ink; }
+  .nav-item { @apply flex items-center gap-[9px] rounded-nav px-[9px] py-[7px]; }
+  .nav-item-active { @apply bg-white font-bold text-navy; }
+  /* Doubt wallpaper: faint navy dots on the page color, like WhatsApp's doodle background in this theme. */
+  .doubt-wallpaper {
+    background-color: #eef1f9;
+    background-image: radial-gradient(rgba(30, 42, 94, 0.07) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+}

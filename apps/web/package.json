@@ -1,0 +1,36 @@
+{
+  "name": "@lms/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "nx": { "name": "web", "tags": ["type:web"] },
+  "scripts": {
+    "serve": "vite --port 4200",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@fontsource/bricolage-grotesque": "^5.1.0",
+    "@fontsource/figtree": "^5.1.0",
+    "@lms/shared": "workspace:*",
+    "axios": "^1.7.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.27.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.0.1",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "vite": "^5.4.9",
+    "vitest": "^2.1.2"
+  }
+}

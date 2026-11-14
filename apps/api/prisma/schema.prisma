@@ -1,0 +1,500 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  INSTRUCTOR
+  STUDENT
+}
+
+enum CourseStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
+enum DoubtStatus {
+  OPEN
+  ANSWERED
+  RESOLVED
+}
+
+enum AssignmentStatus {
+  SUBMITTED
+  VERIFYING
+  ACCEPTED
+  REJECTED
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum PlanType {
+  SINGLE
+  ANNUAL
+}
+
+enum PurchaseType {
+  SINGLE
+  BUNDLE
+  ANNUAL
+}
+
+enum PurchaseStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  REFUNDED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id                 Int      @id @default(autoincrement())
+  name               String   @db.VarChar(100)
+  email              String   @unique @db.VarChar(191)
+  passwordHash       String   @db.VarChar(100)
+  role               Role
+  active             Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  phone              String?  @db.VarChar(30)
+  expertise          String?  @db.VarChar(200)
+  bio                String?  @db.Text
+  instructorId       Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  instructor User?  @relation("InstructorStudents", fields: [instructorId], references: [id], onDelete: SetNull)
+  students   User[] @relation("InstructorStudents")
+
+  coursesCreated  Course[]         @relation("CourseCreator")
+  coursesApproved Course[]         @relation("CourseApprover")
+  purchases       Purchase[]
+  grantsReceived  AccessGrant[]    @relation("GrantStudent")
+  grantsGiven     AccessGrant[]    @relation("GrantGiver")
+  progress        LessonProgress[]
+  attempts        QuizAttempt[]
+  certificates    Certificate[]
+  notifications   Notification[]
+  doubts          Doubt[]
+  doubtReplies    DoubtReply[]
+  assignments      Assignment[]
+  doubtAsStudent    DoubtMessage[] @relation("DoubtStudent")
+  doubtAsInstructor DoubtMessage[] @relation("DoubtInstructor")
+  auditLogs       AuditLog[]
+
+  @@index([role, active])
+  @@index([instructorId])
+}
+
+model Course {
+  id              Int          @id @default(autoincrement())
+  title           String       @db.VarChar(150)
+  slug            String       @unique @db.VarChar(191)
+  description     String       @db.Text
+  category        String       @db.VarChar(80)
+  level           CourseLevel  @default(BEGINNER)
+  thumbnailUrl    String?      @db.VarChar(500)
+  creatorId       Int
+  status          CourseStatus @default(DRAFT)
+  rejectionReason String?      @db.Text
+  passMark        Int          @default(70)
+  maxAttempts     Int          @default(3)
+  showOnHome      Boolean      @default(false)
+  submittedAt     DateTime?
+  approvedById    Int?
+  approvedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  creator    User           @relation("CourseCreator", fields: [creatorId], references: [id])
+  approvedBy User?          @relation("CourseApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  modules    CourseModule[]
+  quiz       Quiz?
+  purchases  Purchase[]
+  grants     AccessGrant[]
+  bundles    BundleCourse[]
+  certificates Certificate[]
+  doubts       Doubt[]
+  assignments  Assignment[]
+  courseAssignments CourseAssignment[]
+
+  @@index([status])
+  @@index([creatorId])
+}
+
+// Table is named "Module" as in the brief; the Prisma model is CourseModule to avoid clashing with JS "module".
+model CourseModule {
+  id       Int    @id @default(autoincrement())
+  courseId Int
+  title    String @db.VarChar(150)
+  order    Int
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId, order])
+  @@map("Module")
+}
+
+model Lesson {
+  id              Int     @id @default(autoincrement())
+  moduleId        Int
+  title           String  @db.VarChar(150)
+  youtubeUrl      String  @db.VarChar(500)
+  youtubeId       String  @db.VarChar(20)
+  durationSeconds Int?
+  order           Int
+  isPreview       Boolean @default(false)
+  notes           String? @db.Text
+
+  module   CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress LessonProgress[]
+  doubts   Doubt[]
+
+  @@index([moduleId, order])
+}
+
+model Plan {
+  id         Int      @id @default(autoincrement())
+  type       PlanType @unique
+  name       String   @db.VarChar(100)
+  priceMinor Int
+  currency   String   @db.VarChar(3)
+  active     Boolean  @default(true)
+}
+
+model Bundle {
+  id         Int     @id @default(autoincrement())
+  name       String  @db.VarChar(100)
+  priceMinor Int
+  currency   String  @db.VarChar(3)
+  active     Boolean @default(true)
+
+  courses   BundleCourse[]
+  purchases Purchase[]
+}
+
+model BundleCourse {
+  bundleId Int
+  courseId Int
+
+  bundle Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([bundleId, courseId])
+  @@index([courseId])
+}
+
+model Payment {
+  id          Int           @id @default(autoincrement())
+  provider    String        @db.VarChar(30)
+  providerRef String        @unique @db.VarChar(191)
+  amountMinor Int
+  currency    String        @db.VarChar(3)
+  status      PaymentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+
+  purchase Purchase?
+}
+
+model Purchase {
+  id          Int            @id @default(autoincrement())
+  studentId   Int
+  type        PurchaseType
+  courseId    Int?
+  bundleId    Int?
+  amountMinor Int
+  currency    String         @db.VarChar(3)
+  status      PurchaseStatus @default(PENDING)
+  startsAt    DateTime       @default(now())
+  endsAt      DateTime?
+  paymentId   Int?           @unique
+  createdAt   DateTime       @default(now())
+
+  student User     @relation(fields: [studentId], references: [id])
+  course  Course?  @relation(fields: [courseId], references: [id])
+  bundle  Bundle?  @relation(fields: [bundleId], references: [id])
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([studentId, status])
+  @@index([courseId])
+  @@index([bundleId])
+}
+
+model AccessGrant {
+  id          Int       @id @default(autoincrement())
+  studentId   Int
+  courseId    Int
+  grantedById Int
+  reason      String?   @db.VarChar(500)
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  student   User   @relation("GrantStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  grantedBy User   @relation("GrantGiver", fields: [grantedById], references: [id])
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, courseId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id                  Int       @id @default(autoincrement())
+  studentId           Int
+  lessonId            Int
+  lastPositionSeconds Int       @default(0)
+  watchedSeconds      Int       @default(0)
+  completed           Boolean   @default(false)
+  completedAt         DateTime?
+  updatedAt           DateTime  @updatedAt
+
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson  Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonId])
+  @@index([lessonId])
+}
+
+model Quiz {
+  id               Int    @id @default(autoincrement())
+  courseId         Int    @unique
+  title            String @db.VarChar(150)
+  timeLimitMinutes Int    @default(30)
+
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions Question[]
+  attempts  QuizAttempt[]
+}
+
+model Question {
+  id          Int     @id @default(autoincrement())
+  quizId      Int
+  text        String  @db.Text
+  order       Int
+  explanation String? @db.Text
+
+  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options Option[]
+
+  @@index([quizId, order])
+}
+
+model Option {
+  id         Int     @id @default(autoincrement())
+  questionId Int
+  text       String  @db.VarChar(500)
+  isCorrect  Boolean @default(false)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model QuizAttempt {
+  id           Int       @id @default(autoincrement())
+  studentId    Int
+  quizId       Int
+  scorePercent Int       @default(0)
+  passed       Boolean   @default(false)
+  answers      Json?
+  startedAt    DateTime  @default(now())
+  submittedAt  DateTime?
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  quiz    Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, quizId])
+}
+
+model Certificate {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique @db.VarChar(40)
+  studentId    Int
+  courseId     Int
+  scorePercent Int
+  issuedAt     DateTime @default(now())
+
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  @@unique([studentId, courseId])
+}
+
+/// One row (id = 1): the look and wording of every certificate PDF. Edited by the admin.
+model CertificateTemplate {
+  id          Int      @id @default(1)
+  orgName     String   @db.VarChar(80)
+  title       String   @db.VarChar(80)
+  introText   String   @db.VarChar(120)
+  courseText  String   @db.VarChar(120)
+  signerName  String   @db.VarChar(80)
+  signerTitle String   @db.VarChar(80)
+  footerNote  String   @db.VarChar(160)
+  primaryColor String  @db.VarChar(7)
+  accentColor  String  @db.VarChar(7)
+  showScore   Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}
+
+model Permission {
+  key   String @id @db.VarChar(100)
+  label String @db.VarChar(150)
+
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  role          Role
+  permissionKey String  @db.VarChar(100)
+  allowed       Boolean @default(false)
+
+  permission Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@id([role, permissionKey])
+}
+
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  title     String    @db.VarChar(150)
+  body      String    @db.Text
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int
+  action    String   @db.VarChar(100)
+  entity    String   @db.VarChar(100)
+  entityId  String?  @db.VarChar(50)
+  createdAt DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entity, entityId])
+}
+
+model Doubt {
+  id        Int         @id @default(autoincrement())
+  studentId Int
+  courseId  Int
+  lessonId  Int?
+  title     String      @db.VarChar(150)
+  body      String      @db.Text
+  status    DoubtStatus @default(OPEN)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  student User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson  Lesson?       @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  replies DoubtReply[]
+
+  @@index([studentId, status])
+  @@index([courseId])
+  @@index([status, updatedAt])
+}
+
+model DoubtReply {
+  id        Int      @id @default(autoincrement())
+  doubtId   Int
+  userId    Int
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  doubt Doubt @relation(fields: [doubtId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([doubtId, createdAt])
+}
+
+/// One message in the private doubt conversation between a student and their assigned instructor.
+/// The pair (studentId, instructorId) is the conversation; fromStudent says who wrote it.
+model DoubtMessage {
+  id           Int       @id @default(autoincrement())
+  studentId    Int
+  instructorId Int
+  fromStudent  Boolean
+  body         String    @db.Text
+  readAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  student    User @relation("DoubtStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  instructor User @relation("DoubtInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, instructorId, createdAt])
+  @@index([instructorId, fromStudent, readAt])
+}
+
+/// An assignment the instructor/admin sets for a course (like a module). Students submit a PDF against it.
+/// The certificate is only issued once the student's submission for every one of these is accepted.
+model CourseAssignment {
+  id          Int      @id @default(autoincrement())
+  courseId    Int
+  title       String   @db.VarChar(150)
+  description String?  @db.Text
+  order       Int
+  createdAt   DateTime @default(now())
+
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  submissions Assignment[]
+
+  @@index([courseId, order])
+}
+
+/// A PDF a student submits for a course. Only the student and their assigned instructor can see it.
+model Assignment {
+  id           Int              @id @default(autoincrement())
+  studentId    Int
+  courseId     Int
+  courseAssignmentId Int?
+  title        String           @db.VarChar(150)
+  note         String?          @db.VarChar(1000)
+  fileName     String           @db.VarChar(200)
+  fileSize     Int
+  fileData     Bytes
+  status       AssignmentStatus @default(SUBMITTED)
+  rejectReason String?          @db.Text
+  /// Marks (0 to 100) the instructor gives when grading. Marks at or above the pass mark = ACCEPTED, below it = REJECTED (the student may try again).
+  marks        Int?
+  /// The instructor's comment on this attempt.
+  feedback     String?          @db.VarChar(1000)
+  /// Which try this is for the course assignment (1, 2, 3...). Every submission is kept, so this is the attempt history.
+  attemptNo    Int              @default(1)
+  reviewedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseAssignment CourseAssignment? @relation(fields: [courseAssignmentId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt])
+  @@index([status])
+  @@index([courseAssignmentId])
+  @@index([studentId, courseAssignmentId])
+}

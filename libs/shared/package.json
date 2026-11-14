@@ -1,0 +1,17 @@
+{
+  "name": "@lms/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "nx": { "name": "shared", "tags": ["type:shared"] },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": { "zod": "^3.23.8" },
+  "devDependencies": { "vitest": "^2.1.2" }
+}
